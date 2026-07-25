@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "cobbleupdraft",
+  "version": "${version}",
+  "name": "CobbleUpdraft",
+  "description": "",
+  "authors": [
+    "XiaoCaoAwA"
+  ],
+  "contact": {
+    "homepage": ""
+  },
+  "license": "All-Rights-Reserved",
+  "icon": "assets/cobbleupdraft/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "xiaocaoawa.minecraft.mod.cobbleupdraft.fabric.CobbleUpdraftFabric"
+    ],
+    "client": [
+      "xiaocaoawa.minecraft.mod.cobbleupdraft.fabric.client.CobbleUpdraftFabricClient"
+    ]
+  },
+  "mixins": [
+    "cobbleupdraft.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.18.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "architectury": ">=13.0.8",
+    "fabric-api": "*",
+    "cobblemon": ">=1.7"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "itemGroup.cobbleupdraft.main": "CobbleUpdraft",
+  "block.cobbleupdraft.pokemon_grabber": "Pokémon Grabber",
+  "entity.cobbleupdraft.grabber_anchor": "Grabber Anchor",
+  "ui.cobbleupdraft.pokemon_grabber.select": "Choose a Pokémon",
+  "message.cobbleupdraft.pokemon_grabber.empty_party": "You have no Pokémon in your party.",
+  "tooltip.cobbleupdraft.pokemon_grabber.header": "Pokémon Grabber:",
+  "tooltip.cobbleupdraft.pokemon_grabber.no_pokemon": "No Pokémon stationed",
+  "tooltip.cobbleupdraft.pokemon_grabber.pokemon": "Pokémon: %s",
+  "tooltip.cobbleupdraft.pokemon_grabber.speed": "Speed: %s",
+  "tooltip.cobbleupdraft.pokemon_grabber.not_lifter": "This Pokémon cannot provide lift",
+  "tooltip.cobbleupdraft.pokemon_grabber.throttle": "Throttle: %s %s",
+  "tooltip.cobbleupdraft.pokemon_grabber.lift": "Current Lift: %s"
+}

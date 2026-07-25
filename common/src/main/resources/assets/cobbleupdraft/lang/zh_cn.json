@@ -1,0 +1,14 @@
+{
+  "itemGroup.cobbleupdraft.main": "宝可梦升空",
+  "block.cobbleupdraft.pokemon_grabber": "宝可梦抓手",
+  "entity.cobbleupdraft.grabber_anchor": "抓手锚点",
+  "ui.cobbleupdraft.pokemon_grabber.select": "选择宝可梦",
+  "message.cobbleupdraft.pokemon_grabber.empty_party": "你的队伍中没有宝可梦。",
+  "tooltip.cobbleupdraft.pokemon_grabber.header": "宝可梦抓手:",
+  "tooltip.cobbleupdraft.pokemon_grabber.no_pokemon": "未安放宝可梦",
+  "tooltip.cobbleupdraft.pokemon_grabber.pokemon": "宝可梦: %s",
+  "tooltip.cobbleupdraft.pokemon_grabber.speed": "速度: %s",
+  "tooltip.cobbleupdraft.pokemon_grabber.not_lifter": "该宝可梦无法提供升力",
+  "tooltip.cobbleupdraft.pokemon_grabber.throttle": "油门: %s %s",
+  "tooltip.cobbleupdraft.pokemon_grabber.lift": "当前升力: %s"
+}
