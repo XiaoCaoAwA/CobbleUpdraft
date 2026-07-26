@@ -27,4 +27,13 @@ public final class GrabberPlatform {
     public static Vec3 projectToWorld(Level level, Vec3 pos) {
         throw new AssertionError();
     }
+
+    /**
+     * 该坐标处飞行器的运动速度（世界坐标系，格/秒）；不在飞行器上时为零。
+     * 用于锚定宝可梦时做一 tick 位置前瞻，消除高速移动时的拖影。
+     */
+    @ExpectPlatform
+    public static Vec3 shipVelocity(Level level, Vec3 pos) {
+        throw new AssertionError();
+    }
 }

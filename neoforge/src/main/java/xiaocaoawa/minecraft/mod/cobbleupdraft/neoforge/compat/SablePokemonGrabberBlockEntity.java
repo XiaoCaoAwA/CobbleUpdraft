@@ -7,6 +7,7 @@ import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import dev.ryanhcode.sable.companion.math.Pose3dc;
 import dev.ryanhcode.sable.physics.config.dimension_physics.DimensionPhysicsData;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
+import dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.BlockState;
@@ -20,6 +21,9 @@ import xiaocaoawa.minecraft.mod.cobbleupdraft.block.PokemonGrabberBlockEntity;
  */
 public class SablePokemonGrabberBlockEntity extends PokemonGrabberBlockEntity implements BlockEntitySubLevelActor {
 
+    /** 上一物理刻施加的升力，用于检测升力消失时唤醒休眠的物理体。仅物理线程访问。 */
+    private double lastAppliedLift;
+
     public SablePokemonGrabberBlockEntity(BlockPos pos, BlockState state) {
         super(pos, state);
     }
@@ -27,9 +31,18 @@ public class SablePokemonGrabberBlockEntity extends PokemonGrabberBlockEntity im
     @Override
     public void sable$physicsTick(ServerSubLevel subLevel, RigidBodyHandle body, double dt) {
         double units = getLiftUnits();
+        double previous = lastAppliedLift;
+        lastAppliedLift = units;
         if (units <= 0.0) {
+            // 升力刚消失（收回宝可梦/红石关闭）：唤醒休眠的物理体，让飞行器恢复下落
+            if (previous > 0.0) {
+                wakeUp(subLevel);
+            }
             return;
         }
+        // 升力工作期间禁止物理体休眠，否则悬停时会被判定静止而冻结在空中
+        wakeUp(subLevel);
+
         ServerLevel level = subLevel.getLevel();
         Pose3dc pose = subLevel.logicalPose();
 
@@ -49,12 +62,25 @@ public class SablePokemonGrabberBlockEntity extends PokemonGrabberBlockEntity im
             return;
         }
 
-        // 浮力 = 重力反方向 × 升力 × 气压，乘 dt 作为冲量（与 ServerBalloon.applyForces 相同）
-        Vector3d force = gravity.mul(-units * pressure * dt);
+        // 浮力 = 重力反方向 × 升力 × 气压（与 ServerBalloon.applyForces 相同）
+        Vector3d force = new Vector3d(gravity).mul(-units * pressure);
+        // 垂直阻尼：抑制围绕悬停高度的无衰减升降振荡（气球式/扑翼式阻尼不同，由 BE 按模式给出）
+        double damping = getActiveDamping();
+        if (damping > 0.0) {
+            force.y -= body.getLinearVelocity().y() * units * damping;
+        }
+        force.mul(dt);
         // 世界坐标系 → 船体局部坐标系
         pose.orientation().transformInverse(force);
 
         subLevel.getOrCreateQueuedForceGroup(ForceGroups.BALLOON_LIFT.get())
                 .applyAndRecordPointForce(plotPos, force);
+    }
+
+    private static void wakeUp(ServerSubLevel subLevel) {
+        SubLevelPhysicsSystem system = SubLevelPhysicsSystem.get(subLevel.getLevel());
+        if (system != null) {
+            system.getPipeline().wakeUp(subLevel);
+        }
     }
 }

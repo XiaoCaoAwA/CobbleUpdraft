@@ -26,4 +26,9 @@ public final class SableCompat {
     public static Vec3 projectToWorld(Level level, Vec3 pos) {
         return Sable.HELPER.projectOutOfSubLevel(level, pos);
     }
+
+    /** 该坐标处飞行器的运动速度（世界坐标系，格/秒）；不在飞行器上时为零。 */
+    public static Vec3 shipVelocity(Level level, Vec3 pos) {
+        return Sable.HELPER.getVelocity(level, pos);
+    }
 }

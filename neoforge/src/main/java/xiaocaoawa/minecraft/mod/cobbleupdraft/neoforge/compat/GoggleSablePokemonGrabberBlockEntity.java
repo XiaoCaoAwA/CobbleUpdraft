@@ -38,6 +38,9 @@ public class GoggleSablePokemonGrabberBlockEntity extends SablePokemonGrabberBlo
         tooltip.add(indent(Component.translatable("tooltip.cobbleupdraft.pokemon_grabber.speed",
                         Component.literal(String.valueOf(getDisplaySpeed())).withStyle(ChatFormatting.AQUA))
                 .withStyle(ChatFormatting.GRAY)));
+        tooltip.add(indent(Component.translatable("tooltip.cobbleupdraft.pokemon_grabber.stat_total",
+                        Component.literal(String.valueOf(getDisplayStatTotal())).withStyle(ChatFormatting.AQUA))
+                .withStyle(ChatFormatting.GRAY)));
 
         if (!isDisplayLifter()) {
             tooltip.add(indent(Component.translatable("tooltip.cobbleupdraft.pokemon_grabber.not_lifter")
@@ -46,20 +49,33 @@ public class GoggleSablePokemonGrabberBlockEntity extends SablePokemonGrabberBlo
         }
 
         // 油门条：15 格对应红石信号 0~15
-        int power = getDisplayPower();
-        MutableComponent bar = Component.empty();
-        bar.append(Component.literal("|".repeat(Math.max(0, power))).withStyle(ChatFormatting.AQUA));
-        bar.append(Component.literal("|".repeat(15 - Math.max(0, Math.min(15, power)))).withStyle(ChatFormatting.DARK_GRAY));
+        int power = Math.max(0, Math.min(15, getDisplayPower()));
         tooltip.add(indent(Component.translatable("tooltip.cobbleupdraft.pokemon_grabber.throttle",
-                        bar,
+                        bar(power, 15),
                         Component.literal(getDisplayThrottlePercent() + "%").withStyle(ChatFormatting.AQUA))
                 .withStyle(ChatFormatting.GRAY)));
+
+        // 填充条：气囊充气量（当前升力 / 容量），复刻热气球面板
+        double capacity = getDisplayCapacity();
+        if (capacity > 0.0) {
+            int filled = (int) Math.round(Math.max(0.0, Math.min(1.0, getLiftUnits() / capacity)) * 20.0);
+            tooltip.add(indent(Component.translatable("tooltip.cobbleupdraft.pokemon_grabber.fill",
+                            bar(filled, 20))
+                    .withStyle(ChatFormatting.GRAY)));
+        }
 
         tooltip.add(indent(Component.translatable("tooltip.cobbleupdraft.pokemon_grabber.lift",
                         Component.literal(String.format(Locale.ROOT, "%.2f kpg", getLiftUnits()))
                                 .withStyle(ChatFormatting.AQUA))
                 .withStyle(ChatFormatting.GRAY)));
         return true;
+    }
+
+    private static MutableComponent bar(int filled, int total) {
+        MutableComponent bar = Component.empty();
+        bar.append(Component.literal("|".repeat(filled)).withStyle(ChatFormatting.AQUA));
+        bar.append(Component.literal("|".repeat(total - filled)).withStyle(ChatFormatting.DARK_GRAY));
+        return bar;
     }
 
     private static MutableComponent indent(Component component) {

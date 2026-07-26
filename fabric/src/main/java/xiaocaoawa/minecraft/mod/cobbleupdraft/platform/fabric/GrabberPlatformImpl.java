@@ -20,4 +20,8 @@ public final class GrabberPlatformImpl {
     public static Vec3 projectToWorld(Level level, Vec3 pos) {
         return pos;
     }
+
+    public static Vec3 shipVelocity(Level level, Vec3 pos) {
+        return Vec3.ZERO;
+    }
 }

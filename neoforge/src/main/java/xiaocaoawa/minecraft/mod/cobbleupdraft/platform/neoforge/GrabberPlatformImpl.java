@@ -32,4 +32,8 @@ public final class GrabberPlatformImpl {
     public static Vec3 projectToWorld(Level level, Vec3 pos) {
         return SABLE_LOADED ? SableCompat.projectToWorld(level, pos) : pos;
     }
+
+    public static Vec3 shipVelocity(Level level, Vec3 pos) {
+        return SABLE_LOADED ? SableCompat.shipVelocity(level, pos) : Vec3.ZERO;
+    }
 }

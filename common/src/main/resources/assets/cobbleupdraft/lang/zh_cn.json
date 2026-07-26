@@ -8,7 +8,9 @@
   "tooltip.cobbleupdraft.pokemon_grabber.no_pokemon": "未安放宝可梦",
   "tooltip.cobbleupdraft.pokemon_grabber.pokemon": "宝可梦: %s",
   "tooltip.cobbleupdraft.pokemon_grabber.speed": "速度: %s",
+  "tooltip.cobbleupdraft.pokemon_grabber.stat_total": "总能力: %s",
   "tooltip.cobbleupdraft.pokemon_grabber.not_lifter": "该宝可梦无法提供升力",
   "tooltip.cobbleupdraft.pokemon_grabber.throttle": "油门: %s %s",
+  "tooltip.cobbleupdraft.pokemon_grabber.fill": "填充: %s",
   "tooltip.cobbleupdraft.pokemon_grabber.lift": "当前升力: %s"
 }

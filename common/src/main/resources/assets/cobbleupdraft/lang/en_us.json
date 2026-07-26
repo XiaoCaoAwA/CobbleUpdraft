@@ -8,7 +8,9 @@
   "tooltip.cobbleupdraft.pokemon_grabber.no_pokemon": "No Pokémon stationed",
   "tooltip.cobbleupdraft.pokemon_grabber.pokemon": "Pokémon: %s",
   "tooltip.cobbleupdraft.pokemon_grabber.speed": "Speed: %s",
+  "tooltip.cobbleupdraft.pokemon_grabber.stat_total": "Stat Total: %s",
   "tooltip.cobbleupdraft.pokemon_grabber.not_lifter": "This Pokémon cannot provide lift",
   "tooltip.cobbleupdraft.pokemon_grabber.throttle": "Throttle: %s %s",
+  "tooltip.cobbleupdraft.pokemon_grabber.fill": "Fill: %s",
   "tooltip.cobbleupdraft.pokemon_grabber.lift": "Current Lift: %s"
 }
