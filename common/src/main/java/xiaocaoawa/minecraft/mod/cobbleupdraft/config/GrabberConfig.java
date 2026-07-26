@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 宝可梦抓手配置，位于 config/cobbleupdraft.json。
@@ -29,8 +31,11 @@ public final class GrabberConfig {
     public double minThrottle = 0.0;
     /**
      * 升力模式：漂浮特性的宝可梦 = 气球式（平稳缓升缓降）；
-     * 飞行系/飞翔技能/会飞等扇翅膀的 = 扑翼式（响应快但有周期性颠簸）。
+     * 其余按宝可梦骑乘数据的飞行模式判定——在 smoothFlightModes 列表里的 = 气球式，
+     * 不在的（bird/glider 等扇翅膀的）= 扑翼式；没有骑乘飞行数据的 = 扑翼式。
      */
+    /** 算作"平稳飞行"（气球式）的骑乘飞行模式（Cobblemon air 行为名）。其余如 bird、glider 为扑翼式。 */
+    public List<String> smoothFlightModes = new ArrayList<>(List.of("hover", "helicopter", "jet", "rocket"));
     /** 气球式：升力充气时间（tick），复刻 CA 热气球 fillingTime=180。 */
     public double liftFillingTimeTicks = 180.0;
     /** 气球式：升力排气时间（tick），复刻 CA 热气球 emptyingTime=180。 */
@@ -99,7 +104,11 @@ public final class GrabberConfig {
               "maxLift": 100.0,
               // 无红石信号时的最小油门(0~1)。0 表示没有红石信号就没有升力
               "minThrottle": 0.0,
-              // ===== 升力模式：漂浮特性=气球式（平稳）；飞行系/飞翔技能等=扑翼式（颠簸） =====
+              // 升力模式判定:
+              // 漂浮特性 = 气球式（平稳）；其余按宝可梦骑乘数据的飞行模式判定：
+              // 在 smoothFlightModes 里 = 气球式，不在（bird/glider 等扇翅膀的）= 扑翼式（颠簸）
+              // 没有骑乘飞行数据的宝可梦 = 扑翼式
+              "smoothFlightModes": ["hover", "helicopter", "jet", "rocket"],
               // 气球式：升力充气时间（tick）（复刻机械动力热气球 180 tick = 9 秒）
               "liftFillingTimeTicks": 180.0,
               // 气球式：升力排气时间（tick）（复刻机械动力热气球 180 tick）

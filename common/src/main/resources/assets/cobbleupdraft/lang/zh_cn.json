@@ -4,6 +4,8 @@
   "entity.cobbleupdraft.grabber_anchor": "抓手锚点",
   "ui.cobbleupdraft.pokemon_grabber.select": "选择宝可梦",
   "message.cobbleupdraft.pokemon_grabber.empty_party": "你的队伍中没有宝可梦。",
+  "message.cobbleupdraft.pokemon_grabber.not_owner": "这不是你的宝可梦。",
+  "message.cobbleupdraft.pokemon_grabber.sent_to_pc": "队伍已满，宝可梦已送入 PC。",
   "tooltip.cobbleupdraft.pokemon_grabber.header": "宝可梦抓手:",
   "tooltip.cobbleupdraft.pokemon_grabber.no_pokemon": "未安放宝可梦",
   "tooltip.cobbleupdraft.pokemon_grabber.pokemon": "宝可梦: %s",

@@ -1,8 +1,12 @@
 package xiaocaoawa.minecraft.mod.cobbleupdraft.block;
 
 import com.cobblemon.mod.common.Cobblemon;
+import com.cobblemon.mod.common.CobblemonEntities;
 import com.cobblemon.mod.common.api.callback.PartySelectCallbacks;
 import com.cobblemon.mod.common.api.moves.Move;
+import com.cobblemon.mod.common.api.riding.RidingStyle;
+import com.cobblemon.mod.common.api.riding.behaviour.RidingBehaviourSettings;
+import com.cobblemon.mod.common.api.riding.behaviour.types.composite.CompositeSettings;
 import com.cobblemon.mod.common.api.storage.party.PlayerPartyStore;
 import com.cobblemon.mod.common.api.types.ElementalType;
 import com.cobblemon.mod.common.api.types.ElementalTypes;
@@ -61,6 +65,9 @@ public class PokemonGrabberBlockEntity extends BlockEntity {
     private UUID entityId;
     @Nullable
     private UUID anchorId;
+    /** 被抓住宝可梦的完整数据（放入时从队伍移除并记录于此，取回时还原）。 */
+    @Nullable
+    private CompoundTag storedPokemon;
     private int missingTicks;
     /** 上一刻的锚定点（世界坐标），用于计算移动方向让宝可梦转身。不持久化。 */
     @Nullable
@@ -117,12 +124,17 @@ public class PokemonGrabberBlockEntity extends BlockEntity {
             be.currentLift = 0.0;
             be.liftUnits = 0.0;
             be.updateDisplay("", 0, 0, false, 0, 0, 0.0);
+            // 展示实体丢失（被杀等）：从方块 NBT 重新生成，宝可梦数据不丢失
             if (++be.missingTicks > MISSING_TIMEOUT_TICKS) {
-                be.clearAssignment();
+                be.respawnStoredPokemon(serverLevel);
             }
             return;
         }
         be.missingTicks = 0;
+        // 出场光束动画播完后复位
+        if (entity.getBeamMode() != 0 && entity.tickCount > 20) {
+            entity.setBeamMode(0);
+        }
 
         GrabberConfig cfg = GrabberConfig.get();
         Pokemon pokemon = entity.getPokemon();
@@ -256,10 +268,10 @@ public class PokemonGrabberBlockEntity extends BlockEntity {
         return displayCapacity;
     }
 
-    /** 右键交互入口：已有宝可梦则收回，否则打开队伍选择界面。 */
+    /** 右键交互入口：已有宝可梦则取回队伍，否则打开队伍选择界面。 */
     public void onUse(ServerPlayer player) {
         if (hasPokemon()) {
-            release(true);
+            retrieve(player);
             return;
         }
         PlayerPartyStore party = Cobblemon.INSTANCE.getStorage().getParty(player);
@@ -291,26 +303,39 @@ public class PokemonGrabberBlockEntity extends BlockEntity {
         if (!(level instanceof ServerLevel serverLevel)) {
             return;
         }
-        Vec3 anchor = worldAnchor(0.0);
-        PokemonEntity existing = pokemon.getEntity();
-        if (existing != null && existing.isAlive()) {
-            existing.setPos(anchor.x, anchor.y, anchor.z);
-            adopt(player, pokemon, existing);
-        } else {
-            pokemon.sendOutWithAnimation(player, serverLevel, anchor, null, true, null, e -> Unit.INSTANCE)
-                    .thenAccept(entity -> {
-                        if (!isRemoved() && !hasPokemon()) {
-                            adopt(player, pokemon, entity);
-                        }
-                    });
+        // 若已放出，先收回实体，避免双重实体
+        pokemon.recall();
+        // 从队伍移除，完整数据记录到方块 NBT（Cobblemon 官方序列化）
+        PlayerPartyStore party = Cobblemon.INSTANCE.getStorage().getParty(player);
+        if (!party.remove(pokemon)) {
+            return;
         }
-    }
-
-    private void adopt(ServerPlayer player, Pokemon pokemon, PokemonEntity entity) {
+        this.storedPokemon = pokemon.saveToNBT(serverLevel.registryAccess(), new CompoundTag());
         this.ownerId = player.getUUID();
         this.pokemonId = pokemon.getUuid();
+        spawnGrabbedEntity(serverLevel, pokemon);
+        setChanged();
+    }
+
+    /** 在方块上生成被抓住的宝可梦展示实体（带出场光束）。 */
+    private void spawnGrabbedEntity(ServerLevel serverLevel, Pokemon pokemon) {
+        PokemonEntity entity = new PokemonEntity(serverLevel, pokemon, CobblemonEntities.POKEMON);
+        Vec3 anchor = worldAnchor(0.0);
+        entity.setPos(anchor.x, anchor.y, anchor.z);
+        entity.setBeamMode(2);
+        serverLevel.addFreshEntity(entity);
         this.entityId = entity.getUUID();
         this.missingTicks = 0;
+    }
+
+    /** 展示实体丢失（被杀等）时，从方块 NBT 里的数据重新生成，保证宝可梦不丢失。 */
+    private void respawnStoredPokemon(ServerLevel serverLevel) {
+        if (storedPokemon == null) {
+            clearAssignment();
+            return;
+        }
+        Pokemon pokemon = Pokemon.Companion.loadFromNBT(serverLevel.registryAccess(), storedPokemon.copy());
+        spawnGrabbedEntity(serverLevel, pokemon);
         setChanged();
     }
 
@@ -357,21 +382,54 @@ public class PokemonGrabberBlockEntity extends BlockEntity {
         anchor.setTargetId(entity.getId());
     }
 
-    /** 释放宝可梦；recall 为 true 时收回精灵球。 */
-    public void release(boolean recall) {
+    /** 玩家右键取回：仅原主人可取，宝可梦加回其队伍（满则送入 PC）。 */
+    private void retrieve(ServerPlayer player) {
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        if (ownerId != null && !ownerId.equals(player.getUUID())) {
+            player.displayClientMessage(Component.translatable("message.cobbleupdraft.pokemon_grabber.not_owner"), true);
+            return;
+        }
+        Pokemon pokemon = takePokemon(serverLevel);
+        if (pokemon != null) {
+            returnToParty(player, pokemon);
+        }
+        clearAssignment();
+    }
+
+    /** 取出被抓住的宝可梦：销毁展示实体，优先取实体上的最新数据，实体丢失时用方块 NBT 兜底。 */
+    @Nullable
+    private Pokemon takePokemon(ServerLevel serverLevel) {
+        Pokemon pokemon = null;
+        PokemonEntity entity = resolveEntity(serverLevel);
+        if (entity != null) {
+            pokemon = entity.getPokemon();
+            entity.discard();
+        } else if (storedPokemon != null) {
+            pokemon = Pokemon.Companion.loadFromNBT(serverLevel.registryAccess(), storedPokemon.copy());
+        }
+        return pokemon;
+    }
+
+    /** 宝可梦加回玩家队伍，队伍满则送入 PC。 */
+    private static void returnToParty(ServerPlayer player, Pokemon pokemon) {
+        if (!Cobblemon.INSTANCE.getStorage().getParty(player).add(pokemon)) {
+            Cobblemon.INSTANCE.getStorage().getPC(player).add(pokemon);
+            player.displayClientMessage(Component.translatable("message.cobbleupdraft.pokemon_grabber.sent_to_pc"), true);
+        }
+    }
+
+    /** 方块被破坏等场景：把宝可梦还给原主人（在线进队伍，离线/队伍满进 PC）。 */
+    public void release(boolean returnPokemon) {
         if (level instanceof ServerLevel serverLevel) {
-            PokemonEntity entity = resolveEntity(serverLevel);
-            if (entity != null) {
-                entity.setNoAi(false);
-                entity.setNoGravity(false);
-                entity.noPhysics = false;
-                entity.setBehaviourFlag(PokemonBehaviourFlag.FLYING, false);
-                if (recall) {
-                    if (entity.getOwner() != null) {
-                        entity.recallWithAnimation();
-                    } else {
-                        entity.getPokemon().recall();
-                    }
+            Pokemon pokemon = takePokemon(serverLevel);
+            if (returnPokemon && pokemon != null && ownerId != null) {
+                ServerPlayer owner = serverLevel.getServer().getPlayerList().getPlayer(ownerId);
+                if (owner != null) {
+                    returnToParty(owner, pokemon);
+                } else {
+                    Cobblemon.INSTANCE.getStorage().getPC(ownerId, serverLevel.registryAccess()).add(pokemon);
                 }
             }
         }
@@ -387,6 +445,7 @@ public class PokemonGrabberBlockEntity extends BlockEntity {
         pokemonId = null;
         entityId = null;
         anchorId = null;
+        storedPokemon = null;
         missingTicks = 0;
         liftUnits = 0.0;
         currentLift = 0.0;
@@ -426,7 +485,9 @@ public class PokemonGrabberBlockEntity extends BlockEntity {
     /**
      * 升力模式判定（各条件可配置）：
      * 漂浮特性 → {@link #MODE_BALLOON} 气球式（平稳）；
-     * 飞行系 / 飞翔技能 / 行为标记会飞 / 任意宝可梦开关 → {@link #MODE_WINGED} 扑翼式（颠簸）；
+     * 有骑乘飞行数据 → 按飞行模式：smoothFlightModes 列表内（hover/helicopter/jet/rocket 等）
+     * 为气球式，其余（bird/glider 等扇翅膀的）为扑翼式；
+     * 无骑乘飞行数据 → 飞行系 / 飞翔技能 / 行为标记会飞 / 任意宝可梦开关 → 扑翼式；
      * 都不满足 → {@link #MODE_NONE} 无升力。
      */
     private static int lifterMode(Pokemon pokemon) {
@@ -434,6 +495,11 @@ public class PokemonGrabberBlockEntity extends BlockEntity {
         // 漂浮特性优先：像气球一样安静平稳
         if (cfg.levitateAbilityLifts && "levitate".equalsIgnoreCase(pokemon.getAbility().getName())) {
             return MODE_BALLOON;
+        }
+        // 按骑乘数据的飞行模式判定
+        String flightMode = flightModeName(pokemon);
+        if (flightMode != null) {
+            return cfg.smoothFlightModes.contains(flightMode) ? MODE_BALLOON : MODE_WINGED;
         }
         if (cfg.anyPokemonCanLift) {
             return MODE_WINGED;
@@ -458,6 +524,50 @@ public class PokemonGrabberBlockEntity extends BlockEntity {
         return MODE_NONE;
     }
 
+    /**
+     * 宝可梦骑乘数据里的飞行模式名（如 "bird"、"glider"、"hover"、"helicopter"、"jet"、"rocket"），
+     * 没有空中骑乘行为时返回 null。复合行为会递归解析其中的空中子行为。
+     */
+    @Nullable
+    private static String flightModeName(Pokemon pokemon) {
+        try {
+            var behaviours = pokemon.getForm().getRiding().getBehaviours();
+            if (behaviours == null) {
+                return null;
+            }
+            String name = airModeName(behaviours.get(RidingStyle.AIR));
+            if (name != null) {
+                return name;
+            }
+            // AIR 槽位没有：复合行为（如 陆地+空中）可能挂在其他槽位
+            for (RidingBehaviourSettings settings : behaviours.values()) {
+                name = airModeName(settings);
+                if (name != null) {
+                    return name;
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // 第三方数据包的骑乘数据不完整时按无飞行数据处理
+        }
+        return null;
+    }
+
+    @Nullable
+    private static String airModeName(@Nullable RidingBehaviourSettings settings) {
+        if (settings == null) {
+            return null;
+        }
+        String path = settings.getKey().getPath();
+        if (path.startsWith("air/")) {
+            return path.substring("air/".length());
+        }
+        if (settings instanceof CompositeSettings composite) {
+            String name = airModeName(composite.getDefaultBehaviour());
+            return name != null ? name : airModeName(composite.getAlternateBehaviour());
+        }
+        return null;
+    }
+
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
@@ -473,6 +583,9 @@ public class PokemonGrabberBlockEntity extends BlockEntity {
         if (anchorId != null) {
             tag.putUUID("AnchorId", anchorId);
         }
+        if (storedPokemon != null) {
+            tag.put("StoredPokemon", storedPokemon.copy());
+        }
         tag.putDouble("CurrentLift", currentLift);
     }
 
@@ -483,6 +596,7 @@ public class PokemonGrabberBlockEntity extends BlockEntity {
         pokemonId = tag.hasUUID("PokemonId") ? tag.getUUID("PokemonId") : null;
         entityId = tag.hasUUID("EntityId") ? tag.getUUID("EntityId") : null;
         anchorId = tag.hasUUID("AnchorId") ? tag.getUUID("AnchorId") : null;
+        storedPokemon = tag.contains("StoredPokemon") ? tag.getCompound("StoredPokemon") : null;
         currentLift = tag.getDouble("CurrentLift");
         if (tag.contains("DisplayName")) {
             displayPokemonName = tag.getString("DisplayName");
