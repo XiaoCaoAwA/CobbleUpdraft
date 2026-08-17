@@ -68,6 +68,8 @@ public final class GrabberConfig {
     public boolean canFlyBehaviourLifts = true;
     /** 宝可梦悬浮在方块上方的高度（格），用于播放扇翅膀的悬浮动画。 */
     public double hoverHeight = 0.3;
+    /** 抓手上的宝可梦是否取消碰撞箱：不推挤玩家、不被推动、射线穿透（不挡放置/破坏方块）。 */
+    public boolean grabbedPokemonNoCollision = true;
 
     public static GrabberConfig get() {
         return instance;
@@ -140,7 +142,9 @@ public final class GrabberConfig {
               // 行为数据标记会飞(canFly)的宝可梦可提供升力
               "canFlyBehaviourLifts": true,
               // 宝可梦悬浮在方块上方的高度（格）
-              "hoverHeight": 0.3
+              "hoverHeight": 0.3,
+              // 抓手上的宝可梦取消碰撞箱：不推挤玩家、不被推动、射线穿透（不挡放置/破坏方块）
+              "grabbedPokemonNoCollision": true
             }
             """;
 }
